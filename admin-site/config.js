@@ -2,5 +2,5 @@
 // Both are meant to be public/exposed in client code — access control
 // is enforced by the Row Level Security policies in supabase/schema.sql,
 // not by keeping this key secret.
-const SUPABASE_URL = 'https://YOUR-PROJECT-REF.supabase.co';
-const SUPABASE_ANON_KEY = 'YOUR-ANON-PUBLIC-KEY';
+const SUPABASE_URL = 'https://kyueeuxzdlhbuisyprvb.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_HEI0pRaZdIOCL3kVumU3yw_zb9eUXk5';
