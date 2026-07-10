@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vocabulary Trainer</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<button class="weak-pill" id="weakPill" style="display:none;">✗ Weak words: <span id="weakCount">0</span></button>
+
+<div class="modal-overlay" id="weakModal">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2>Weak words</h2>
+      <button class="modal-close" id="weakModalClose">close ✕</button>
+    </div>
+    <div class="modal-list" id="weakList"></div>
+    <div class="modal-foot">
+      <button class="modal-btn secondary" id="weakClearBtn">Clear all</button>
+      <button class="modal-btn" id="weakExportBtn">Export as PDF</button>
+    </div>
+  </div>
+</div>
+
+<div class="wrap">
+
+  <!-- ================= LOADING / ERROR ================= -->
+  <div id="loadingStage" class="loading-state">Loading collections…</div>
+  <div id="errorStage" class="error-state" style="display:none;"></div>
+
+  <!-- ================= HOME STAGE ================= -->
+  <div id="homeStage" style="display:none;">
+    <div class="masthead">
+      <h1>Vocabulary Trainer</h1>
+      <p>Choose a collection to start revising</p>
+    </div>
+    <div class="book-grid" id="bookGrid"></div>
+  </div>
+
+  <!-- ================= BOOK STAGE (day/test picker) ================= -->
+  <div id="bookStage" style="display:none;">
+    <button class="back-btn" id="backToHomeBtn">← All collections</button>
+    <div class="masthead">
+      <h1 id="bookTitle">Book</h1>
+      <p id="bookSubtitle">— subtitle —</p>
+    </div>
+    <div id="itemGridWrap">
+      <div class="item-grid" id="itemGrid"></div>
+    </div>
+  </div>
+
+  <!-- ================= STUDY STAGE (flashcards / quiz) ================= -->
+  <div id="studyStage" style="display:none;">
+    <button class="back-btn" id="backToBookBtn">← <span id="backLabel">Back</span></button>
+    <div class="masthead">
+      <h1 id="studyTitle">Day 35</h1>
+      <p id="wordcount-label">— words on file —</p>
+      <p class="breadcrumb" id="studyBreadcrumb"></p>
+    </div>
+
+    <div class="catbar" id="catbar"></div>
+    <div class="mode-toggle">
+      <button class="mode-btn active" id="btn-flash">Flashcards</button>
+      <button class="mode-btn" id="btn-quiz">Quiz</button>
+    </div>
+
+    <div class="stage" id="flashStage">
+      <div class="progress-row">
+        <span id="flashProgress">1 / 1</span>
+        <div class="progress-bar"><div class="progress-fill" id="flashBar"></div></div>
+        <span id="flashKnown">✓ 0</span>
+      </div>
+
+      <div class="card" id="card">
+        <div class="card-inner">
+          <div class="face front">
+            <div class="face-tag" id="frontTag">EN</div>
+            <div class="face-word" id="frontWord">word</div>
+            <div class="face-sub">tap to reveal</div>
+          </div>
+          <div class="face back">
+            <div class="face-tag">RU</div>
+            <div class="face-word" id="backWord">перевод</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card-controls">
+        <button class="ctrl-btn dontknow" id="dontKnowBtn">✗ Still learning</button>
+        <button class="ctrl-btn know" id="knowBtn">✓ Know it</button>
+      </div>
+      <div class="hint">click the card to flip · shuffled each round</div>
+    </div>
+
+    <div class="stage" id="quizStage" style="display:none;">
+      <div class="progress-row">
+        <span id="quizProgress">1 / 1</span>
+        <div class="progress-bar"><div class="progress-fill" id="quizBar"></div></div>
+        <span id="quizScore">✓ 0</span>
+      </div>
+
+      <div class="quiz-box" id="quizBox">
+        <div class="quiz-tag" id="quizTag">translate into Russian</div>
+        <div class="quiz-q" id="quizQ">word</div>
+        <div class="options" id="quizOptions"></div>
+        <div class="quiz-footer">
+          <span id="quizFeedback"></span>
+          <button class="next-btn" id="nextBtn">Next →</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="stage" id="summaryStage" style="display:none;">
+      <div class="summary">
+        <div class="eyebrow" style="color:var(--ink-soft);">Session complete</div>
+        <div class="big" id="summaryScore">0 / 0</div>
+        <div id="summaryDetail" style="color:var(--ink-soft);">correct answers</div>
+        <button class="restart-btn" id="restartBtn">Run again</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="site-footer">
+    <p>Prepared by <strong>Miravzal Salakhiddinov</strong></p>
+    <p>For more materials, reach out on Telegram: <a href="https://t.me/salakhiddinovm" target="_blank" rel="noopener">@salakhiddinovm</a></p>
+  </div>
+
+</div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
