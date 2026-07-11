@@ -148,118 +148,152 @@ document.getElementById('weakExportBtn').onclick = async () => {
   btn.textContent = 'Preparing…';
   btn.disabled = true;
 
-  const PAGE_W = 794;
-  const dateStr = new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' });
-
-  const sheet = document.createElement('div');
-  sheet.style.position = 'fixed';
-  sheet.style.left = '-99999px';
-  sheet.style.top = '0';
-  sheet.style.width = PAGE_W + 'px';
-  sheet.style.background = '#ffffff';
-  sheet.style.padding = '50px 56px 44px';
-  sheet.style.fontFamily = 'Arial, Helvetica, sans-serif';
-  sheet.style.color = '#1a1a1a';
-  sheet.style.boxSizing = 'border-box';
-
-  // ---- header ----
-  const header = document.createElement('div');
-  header.style.marginBottom = '26px';
-  header.style.paddingBottom = '16px';
-  header.style.borderBottom = '3px solid #4655f5';
-  header.innerHTML = `
-    <div style="font-size:26px;font-weight:800;color:#1c2440;letter-spacing:-0.01em;">Weak Words</div>
-    <div style="font-size:12.5px;color:#667089;margin-top:6px;">Vocabulary Trainer &middot; ${items.length} word${items.length===1?'':'s'} to review &middot; generated ${dateStr}</div>
-  `;
-  sheet.appendChild(header);
-
-  // ---- table ----
-  const table = document.createElement('table');
-  table.style.width = '100%';
-  table.style.borderCollapse = 'collapse';
-  table.style.fontSize = '13.5px';
-
-  const thead = document.createElement('thead');
-  const headCellStyle = 'text-align:left; padding:9px 12px; background:#4655f5; color:#ffffff; border:1px solid #4655f5; font-size:11px; font-weight:bold; letter-spacing:0.04em; text-transform:uppercase;';
-  thead.innerHTML = `
-    <tr>
-      <th style="${headCellStyle} width:42px;">#</th>
-      <th style="${headCellStyle}">English</th>
-      <th style="${headCellStyle}">Russian</th>
-    </tr>
-  `;
-  table.appendChild(thead);
-
-  const tbody = document.createElement('tbody');
-  items.forEach((w, idx) => {
-    const tr = document.createElement('tr');
-    const bg = idx % 2 === 0 ? '#ffffff' : '#f5f6fd';
-    const cellBase = `padding:9px 12px; border:1px solid #cccccc; background:${bg};`;
-    tr.innerHTML = `
-      <td style="${cellBase} color:#667089;">${idx+1}</td>
-      <td style="${cellBase} color:#1c2440; font-weight:bold;">${escapeHtml(w.en)}</td>
-      <td style="${cellBase} color:#1c2440;">${escapeHtml(w.ru)}</td>
-    `;
-    tbody.appendChild(tr);
-  });
-  table.appendChild(tbody);
-  sheet.appendChild(table);
-
-  // ---- footer ----
-  const footer = document.createElement('div');
-  footer.style.marginTop = '30px';
-  footer.style.paddingTop = '14px';
-  footer.style.borderTop = '1px solid #cccccc';
-  footer.style.fontSize = '11px';
-  footer.style.color = '#667089';
-  footer.style.textAlign = 'center';
-  footer.innerHTML = `Prepared by: <strong style="color:#1c2440;">Miravzal Salakhiddinov</strong> &middot; Telegram: <span style="color:#4655f5;">@salakhiddinovm</span>`;
-  sheet.appendChild(footer);
-
-  document.body.appendChild(sheet);
-
   try{
-    if(document.fonts && document.fonts.ready){ await document.fonts.ready; }
-    const canvas = await html2canvas(sheet, { scale: 2, backgroundColor: '#ffffff' });
-
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'pt', format: 'a4' });
-    const pdfW = doc.internal.pageSize.getWidth();
-    const pdfH = doc.internal.pageSize.getHeight();
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    const marginX = 50;
+    const marginTop = 56;
+    const marginBottom = 60;
+    const usableW = pageW - marginX * 2;
 
-    const pxPerPagePt = canvas.width / pdfW;
-    const pageHeightPx = Math.floor(pdfH * pxPerPagePt);
+    const colNumW = 40;
+    const colEnW = usableW * 0.42;
+    const colRuW = usableW - colNumW - colEnW;
+    const rowH = 22;
+    const headH = 24;
 
-    let renderedPx = 0;
-    let first = true;
-    while(renderedPx < canvas.height){
-      const sliceH = Math.min(pageHeightPx, canvas.height - renderedPx);
-      const sliceCanvas = document.createElement('canvas');
-      sliceCanvas.width = canvas.width;
-      sliceCanvas.height = sliceH;
-      const ctx = sliceCanvas.getContext('2d');
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0,0,sliceCanvas.width, sliceCanvas.height);
-      ctx.drawImage(canvas, 0, renderedPx, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
+    const brandColor = [70, 85, 245];
+    const inkColor = [28, 36, 64];
+    const softColor = [102, 112, 137];
+    const borderColor = [200, 200, 200];
+    const zebraColor = [245, 246, 253];
 
-      const imgData = sliceCanvas.toDataURL('image/png');
-      if(!first) doc.addPage();
-      first = false;
-      const sliceHeightPt = sliceH / pxPerPagePt;
-      doc.addImage(imgData, 'PNG', 0, 0, pdfW, sliceHeightPt);
+    const dateStr = new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' });
 
-      renderedPx += sliceH;
+    function drawPageHeader(){
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(20);
+      doc.setTextColor(...inkColor);
+      doc.text('Weak Words', marginX, marginTop);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9.5);
+      doc.setTextColor(...softColor);
+      doc.text(
+        `Vocabulary Trainer  ·  ${items.length} word${items.length===1?'':'s'} to review  ·  generated ${dateStr}`,
+        marginX, marginTop + 16
+      );
+
+      doc.setDrawColor(...brandColor);
+      doc.setLineWidth(2);
+      doc.line(marginX, marginTop + 26, pageW - marginX, marginTop + 26);
     }
 
+    function drawTableHeader(y){
+      doc.setFillColor(...brandColor);
+      doc.rect(marginX, y, usableW, headH, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(9.5);
+      doc.setTextColor(255, 255, 255);
+      doc.text('#', marginX + 10, y + headH / 2 + 3);
+      doc.text('ENGLISH', marginX + colNumW + 10, y + headH / 2 + 3);
+      doc.text('RUSSIAN', marginX + colNumW + colEnW + 10, y + headH / 2 + 3);
+      return y + headH;
+    }
+
+    function drawFooter(){
+      const fy = pageH - 34;
+      doc.setDrawColor(...borderColor);
+      doc.setLineWidth(0.75);
+      doc.line(marginX, fy - 14, pageW - marginX, fy - 14);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      doc.setTextColor(...softColor);
+      const line = 'Prepared by: Miravzal Salakhiddinov   ·   Telegram: @salakhiddinovm';
+      doc.text(line, pageW / 2, fy, { align: 'center' });
+    }
+
+    let y = marginTop + 44;
+    drawPageHeader();
+    y = drawTableHeader(y);
+
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10.5);
+
+    items.forEach((w, idx) => {
+      if(y + rowH > pageH - marginBottom){
+        drawFooter();
+        doc.addPage();
+        y = marginTop + 44;
+        drawPageHeader();
+        y = drawTableHeader(y);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(10.5);
+      }
+
+      if(idx % 2 === 1){
+        doc.setFillColor(...zebraColor);
+        doc.rect(marginX, y, usableW, rowH, 'F');
+      }
+
+      doc.setDrawColor(...borderColor);
+      doc.setLineWidth(0.75);
+      doc.rect(marginX, y, colNumW, rowH);
+      doc.rect(marginX + colNumW, y, colEnW, rowH);
+      doc.rect(marginX + colNumW + colEnW, y, colRuW, rowH);
+
+      const textY = y + rowH / 2 + 3.5;
+      doc.setTextColor(...softColor);
+      doc.text(String(idx + 1), marginX + 10, textY);
+
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(...inkColor);
+      doc.text(doc.splitTextToSize(w.en, colEnW - 16)[0], marginX + colNumW + 10, textY);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setTextColor(...inkColor);
+      doc.text(doc.splitTextToSize(w.ru, colRuW - 16)[0], marginX + colNumW + colEnW + 10, textY);
+
+      y += rowH;
+    });
+
+    drawFooter();
     doc.save('weak-words.pdf');
   } finally {
-    document.body.removeChild(sheet);
     btn.textContent = originalLabel;
     btn.disabled = false;
   }
 };
 
 loadWeakWords();
+
+// ================= FULLSCREEN TOGGLE =================
+const fullscreenBtn = document.getElementById('fullscreenBtn');
+const fullscreenLabel = document.getElementById('fullscreenLabel');
+
+function isFullscreen(){
+  return !!(document.fullscreenElement || document.webkitFullscreenElement);
+}
+function updateFullscreenBtn(){
+  const on = isFullscreen();
+  fullscreenBtn.classList.toggle('active', on);
+  fullscreenLabel.textContent = on ? 'Exit fullscreen' : 'Fullscreen';
+}
+fullscreenBtn.onclick = () => {
+  if(!isFullscreen()){
+    const el = document.documentElement;
+    (el.requestFullscreen || el.webkitRequestFullscreen)?.call(el);
+  } else {
+    (document.exitFullscreen || document.webkitExitFullscreen)?.call(document);
+  }
+};
+document.addEventListener('fullscreenchange', updateFullscreenBtn);
+document.addEventListener('webkitfullscreenchange', updateFullscreenBtn);
+if(!document.documentElement.requestFullscreen && !document.documentElement.webkitRequestFullscreen){
+  fullscreenBtn.style.display = 'none';
+}
 
 // ================= NAVIGATION =================
 const homeStage = document.getElementById('homeStage');
