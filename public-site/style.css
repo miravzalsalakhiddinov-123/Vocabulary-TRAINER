@@ -40,11 +40,6 @@ body{
   from{ opacity:0; transform: scale(.92); }
   to{ opacity:1; transform: scale(1); }
 }
-@keyframes shimmer{
-  0%{ background-position: -200% 0; }
-  100%{ background-position: 200% 0; }
-}
-
 /* ---------- TOP BANNER ---------- */
 .top-banner{
   position: sticky;
@@ -54,8 +49,6 @@ body{
   text-align:center;
   padding: clamp(12px, 3vw, 15px) 16px;
   background: linear-gradient(100deg, var(--tab-blue), var(--violet) 55%, var(--tab-blue-dark));
-  background-size: 220% 100%;
-  animation: shimmer 9s ease-in-out infinite;
   color: #ffffff;
   font-family: var(--font-head);
   font-weight: 700;
@@ -399,6 +392,33 @@ body{
 @media (max-width: 360px){
   .weak-pill span, .weak-pill{ font-size: 10.5px; }
   .ctrl-btn{ flex: 1 1 auto; }
+}
+
+/* ---------- FULLSCREEN TOGGLE ---------- */
+.fullscreen-btn{
+  position: fixed;
+  top: clamp(64px, 12vw, 78px);
+  left: clamp(10px, 3vw, 18px);
+  font-family: var(--font-head);
+  font-size: clamp(11px, 2.8vw, 12.5px);
+  font-weight: 700;
+  padding: clamp(8px, 2.2vw, 10px) clamp(12px, 3vw, 16px);
+  border-radius: 22px;
+  border: 1.5px solid var(--card-edge);
+  background: #ffffff;
+  color: var(--ink-soft);
+  cursor: pointer;
+  z-index: 20;
+  display:flex; align-items:center; gap:6px;
+  box-shadow: 0 2px 8px rgba(70,85,245,0.1);
+  white-space: nowrap;
+  transition: all .15s ease;
+}
+.fullscreen-btn:hover{ border-color: var(--tab-blue); color: var(--tab-blue); transform: translateY(-2px); }
+.fullscreen-btn.active{
+  background: linear-gradient(120deg, var(--tab-blue), var(--violet));
+  border-color: transparent;
+  color: #ffffff;
 }
 
 /* ---------- WEAK WORDS ---------- */
