@@ -109,13 +109,13 @@ function openWeakModal(){
     weakList.innerHTML = '<div class="modal-empty">No weak words yet — miss a few in Quiz mode or mark flashcards "Still learning" and they will collect here, from any collection.</div>';
   } else {
     weakList.innerHTML = '';
-    items.forEach(w => {
+    items.forEach((w, idx) => {
       const row = document.createElement('div');
       row.className = 'weak-row';
       const metaBits = [w.category, w.item, w.book].filter(Boolean).map(escapeHtml).join(' · ');
       row.innerHTML = `
         <div>
-          <div class="wr-word">${escapeHtml(w.en)} <span class="wr-ru">= ${escapeHtml(w.ru)}</span></div>
+          <div class="wr-word"><span class="wr-idx">${idx+1}</span>${escapeHtml(w.en)} <span class="wr-ru">= ${escapeHtml(w.ru)}</span></div>
           <div class="wr-meta">${metaBits}</div>
         </div>
       `;
@@ -149,6 +149,7 @@ document.getElementById('weakExportBtn').onclick = async () => {
   btn.disabled = true;
 
   const PAGE_W = 794;
+  const dateStr = new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' });
 
   const sheet = document.createElement('div');
   sheet.style.position = 'fixed';
@@ -156,17 +157,64 @@ document.getElementById('weakExportBtn').onclick = async () => {
   sheet.style.top = '0';
   sheet.style.width = PAGE_W + 'px';
   sheet.style.background = '#ffffff';
-  sheet.style.padding = '48px 56px';
+  sheet.style.padding = '50px 56px 44px';
   sheet.style.fontFamily = 'Arial, Helvetica, sans-serif';
   sheet.style.color = '#1a1a1a';
-  sheet.style.fontSize = '15px';
-  sheet.style.lineHeight = '2';
+  sheet.style.boxSizing = 'border-box';
 
-  items.forEach(w => {
-    const line = document.createElement('div');
-    line.textContent = w.en + ' = ' + w.ru;
-    sheet.appendChild(line);
+  // ---- header ----
+  const header = document.createElement('div');
+  header.style.marginBottom = '26px';
+  header.style.paddingBottom = '16px';
+  header.style.borderBottom = '3px solid #4655f5';
+  header.innerHTML = `
+    <div style="font-size:26px;font-weight:800;color:#1c2440;letter-spacing:-0.01em;">Weak Words</div>
+    <div style="font-size:12.5px;color:#667089;margin-top:6px;">Vocabulary Trainer &middot; ${items.length} word${items.length===1?'':'s'} to review &middot; generated ${dateStr}</div>
+  `;
+  sheet.appendChild(header);
+
+  // ---- table ----
+  const table = document.createElement('table');
+  table.style.width = '100%';
+  table.style.borderCollapse = 'collapse';
+  table.style.fontSize = '13.5px';
+
+  const thead = document.createElement('thead');
+  const headCellStyle = 'text-align:left; padding:9px 12px; background:#4655f5; color:#ffffff; border:1px solid #4655f5; font-size:11px; font-weight:bold; letter-spacing:0.04em; text-transform:uppercase;';
+  thead.innerHTML = `
+    <tr>
+      <th style="${headCellStyle} width:42px;">#</th>
+      <th style="${headCellStyle}">English</th>
+      <th style="${headCellStyle}">Russian</th>
+    </tr>
+  `;
+  table.appendChild(thead);
+
+  const tbody = document.createElement('tbody');
+  items.forEach((w, idx) => {
+    const tr = document.createElement('tr');
+    const bg = idx % 2 === 0 ? '#ffffff' : '#f5f6fd';
+    const cellBase = `padding:9px 12px; border:1px solid #cccccc; background:${bg};`;
+    tr.innerHTML = `
+      <td style="${cellBase} color:#667089;">${idx+1}</td>
+      <td style="${cellBase} color:#1c2440; font-weight:bold;">${escapeHtml(w.en)}</td>
+      <td style="${cellBase} color:#1c2440;">${escapeHtml(w.ru)}</td>
+    `;
+    tbody.appendChild(tr);
   });
+  table.appendChild(tbody);
+  sheet.appendChild(table);
+
+  // ---- footer ----
+  const footer = document.createElement('div');
+  footer.style.marginTop = '30px';
+  footer.style.paddingTop = '14px';
+  footer.style.borderTop = '1px solid #cccccc';
+  footer.style.fontSize = '11px';
+  footer.style.color = '#667089';
+  footer.style.textAlign = 'center';
+  footer.innerHTML = `Prepared by: <strong style="color:#1c2440;">Miravzal Salakhiddinov</strong> &middot; Telegram: <span style="color:#4655f5;">@salakhiddinovm</span>`;
+  sheet.appendChild(footer);
 
   document.body.appendChild(sheet);
 
@@ -269,10 +317,11 @@ function showStudy(book, item){
 function renderBookGrid(){
   const grid = document.getElementById('bookGrid');
   grid.innerHTML = '';
-  LIBRARY.forEach(book => {
+  LIBRARY.forEach((book, idx) => {
     const card = document.createElement('div');
     card.className = 'book-card';
     card.style.setProperty('--book-accent', book.accent);
+    card.style.animationDelay = Math.min(idx * 0.05, 0.4) + 's';
     const n = book.items.length;
     const wc = bookWordCount(book);
     const countLabel = n === 0 ? 'coming soon' : (n + (n === 1 ? ' set' : ' sets') + ' · ' + wc + ' words');
@@ -294,10 +343,12 @@ function renderItemGrid(book){
   }
   const grid = document.createElement('div');
   grid.className = 'item-grid';
-  book.items.forEach(item => {
+  book.items.forEach((item, idx) => {
     const card = document.createElement('div');
     card.className = 'item-card';
+    card.style.animationDelay = Math.min(idx * 0.04, 0.4) + 's';
     card.innerHTML = `
+      <div class="ic-idx">${idx+1}</div>
       <div class="ic-title">${escapeHtml(item.title)}</div>
       <div class="ic-sub">${escapeHtml(item.subtitle || (wordCount(item) + ' words'))}</div>
     `;
