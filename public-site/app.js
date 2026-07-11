@@ -139,6 +139,26 @@ document.getElementById('weakClearBtn').onclick = () => {
   openWeakModal();
 };
 
+const NOTO_SANS_URL = 'https://raw.githubusercontent.com/openmaptiles/fonts/master/noto-sans/NotoSans-Regular.ttf';
+let notoSansFontPromise = null;
+function getNotoSansFontBase64(){
+  if(!notoSansFontPromise){
+    notoSansFontPromise = fetch(NOTO_SANS_URL)
+      .then(res => { if(!res.ok) throw new Error('font fetch failed'); return res.arrayBuffer(); })
+      .then(buf => {
+        const bytes = new Uint8Array(buf);
+        let binary = '';
+        const chunkSize = 0x8000;
+        for(let i = 0; i < bytes.length; i += chunkSize){
+          binary += String.fromCharCode.apply(null, bytes.subarray(i, i + chunkSize));
+        }
+        return btoa(binary);
+      })
+      .catch(err => { console.error('Could not load Cyrillic font for PDF export', err); return null; });
+  }
+  return notoSansFontPromise;
+}
+
 document.getElementById('weakExportBtn').onclick = async () => {
   const items = Object.values(weakWords).sort((a,b) => a.en.localeCompare(b.en));
   if(items.length === 0) return;
@@ -149,8 +169,20 @@ document.getElementById('weakExportBtn').onclick = async () => {
   btn.disabled = true;
 
   try{
+    const notoBase64 = await getNotoSansFontBase64();
+
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF({ unit: 'pt', format: 'a4' });
+
+    // Cyrillic-capable font, used only where non-Latin text may appear.
+    // Falls back to the built-in Latin font if the download failed.
+    let ruFont = 'helvetica', ruStyle = 'normal';
+    if(notoBase64){
+      doc.addFileToVFS('NotoSans-Regular.ttf', notoBase64);
+      doc.addFont('NotoSans-Regular.ttf', 'NotoSans', 'normal');
+      ruFont = 'NotoSans';
+    }
+
     const pageW = doc.internal.pageSize.getWidth();
     const pageH = doc.internal.pageSize.getHeight();
     const marginX = 50;
@@ -219,9 +251,6 @@ document.getElementById('weakExportBtn').onclick = async () => {
     drawPageHeader();
     y = drawTableHeader(y);
 
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(10.5);
-
     items.forEach((w, idx) => {
       if(y + rowH > pageH - marginBottom){
         drawFooter();
@@ -229,8 +258,6 @@ document.getElementById('weakExportBtn').onclick = async () => {
         y = marginTop + 44;
         drawPageHeader();
         y = drawTableHeader(y);
-        doc.setFont('helvetica', 'normal');
-        doc.setFontSize(10.5);
       }
 
       if(idx % 2 === 1){
@@ -245,14 +272,19 @@ document.getElementById('weakExportBtn').onclick = async () => {
       doc.rect(marginX + colNumW + colEnW, y, colRuW, rowH);
 
       const textY = y + rowH / 2 + 3.5;
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(10.5);
       doc.setTextColor(...softColor);
       doc.text(String(idx + 1), marginX + 10, textY);
 
       doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10.5);
       doc.setTextColor(...inkColor);
       doc.text(doc.splitTextToSize(w.en, colEnW - 16)[0], marginX + colNumW + 10, textY);
 
-      doc.setFont('helvetica', 'normal');
+      doc.setFont(ruFont, ruStyle);
+      doc.setFontSize(10.5);
       doc.setTextColor(...inkColor);
       doc.text(doc.splitTextToSize(w.ru, colRuW - 16)[0], marginX + colNumW + colEnW + 10, textY);
 
