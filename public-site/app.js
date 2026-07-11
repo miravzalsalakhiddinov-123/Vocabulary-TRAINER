@@ -559,7 +559,7 @@ const quizTag = document.getElementById('quizTag');
 
 function startQuiz(){
   const pool = currentPool();
-  quizDeck = shuffle(pool).slice(0, Math.min(20, pool.length));
+  quizDeck = shuffle(pool);
   quizIdx = 0; quizScore = 0;
   showQuizQuestion();
 }
