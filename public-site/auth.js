@@ -66,22 +66,74 @@ function getReferralLink(){
   return url.toString();
 }
 
-// ---------- Telegram widget ----------
-// Called globally by the widget once Telegram confirms the login.
-window.onTelegramAuth = async function(tgUser){
+// ---------- Telegram bot login (deep link + polling) ----------
+// Instead of the oauth.telegram.org widget (which asks for a phone number
+// and can fail to deliver a code), this opens a t.me/YourBot?start=CODE
+// deep link straight into the Telegram app. The user taps Start once,
+// the bot's webhook logs them in server-side, and this tab polls until
+// that happens.
+
+let loginPollTimer = null;
+
+function stopLoginPoll(){
+  if(loginPollTimer){ clearInterval(loginPollTimer); loginPollTimer = null; }
+}
+
+function makeLoginCode(){
+  if(crypto && crypto.randomUUID) return crypto.randomUUID().replace(/-/g, '');
+  return 'c' + Date.now() + Math.random().toString(36).slice(2);
+}
+
+async function startTelegramBotLogin(){
   const authArea = document.getElementById('authArea');
-  if(authArea) authArea.innerHTML = '<div class="auth-loading">Signing in…</div>';
-  try{
-    const ref = getReferralCodeFromURL();
-    const data = await callFunction('telegram-auth', { authData: tgUser, ref });
-    storeSession(data.token, data.user);
-    stripReferralFromURL();
-  }catch(e){
-    console.error('Telegram auth failed', e);
+  if(!authArea) return;
+
+  if(!TELEGRAM_BOT_NAME || TELEGRAM_BOT_NAME === 'YourBotUsername'){
+    authArea.innerHTML = '<div class="auth-hint">Telegram login not configured yet.</div>';
+    return;
   }
-  renderAuthUI();
-  if(typeof onAuthChanged === 'function') onAuthChanged();
-};
+
+  const code = makeLoginCode();
+  authArea.innerHTML = `
+    <div class="auth-pending">
+      <span>Waiting for Telegram… </span>
+      <a id="authOpenBot" href="https://t.me/${TELEGRAM_BOT_NAME}?start=${code}" target="_blank" rel="noopener" class="auth-btn">Open Telegram</a>
+      <button id="authCancelPoll" class="auth-cancel" title="Cancel">✕</button>
+    </div>
+  `;
+
+  // Open it immediately too, in case the user's click was swallowed by the re-render.
+  window.open(`https://t.me/${TELEGRAM_BOT_NAME}?start=${code}`, '_blank', 'noopener');
+
+  document.getElementById('authCancelPoll').onclick = () => {
+    stopLoginPoll();
+    renderAuthUI();
+  };
+
+  stopLoginPoll();
+  const startedAt = Date.now();
+  loginPollTimer = setInterval(async () => {
+    // Give up after 3 minutes so a stuck poll doesn't run forever.
+    if(Date.now() - startedAt > 3 * 60 * 1000){
+      stopLoginPoll();
+      const area = document.getElementById('authArea');
+      if(area) area.innerHTML = '<div class="auth-hint">Login timed out. Try again.</div>';
+      return;
+    }
+    try{
+      const data = await callFunction('check-login', { code });
+      if(data.status === 'claimed' && data.token && data.user){
+        stopLoginPoll();
+        storeSession(data.token, data.user);
+        stripReferralFromURL();
+        renderAuthUI();
+        if(typeof onAuthChanged === 'function') onAuthChanged();
+      }
+    }catch(e){
+      console.error('check-login failed', e);
+    }
+  }, 2000);
+}
 
 function injectTelegramWidget(container){
   container.innerHTML = '';
@@ -89,14 +141,11 @@ function injectTelegramWidget(container){
     container.innerHTML = '<div class="auth-hint">Telegram login not configured yet.</div>';
     return;
   }
-  const script = document.createElement('script');
-  script.src = 'https://telegram.org/js/telegram-widget.js?22';
-  script.setAttribute('data-telegram-login', TELEGRAM_BOT_NAME);
-  script.setAttribute('data-size', 'medium');
-  script.setAttribute('data-radius', '10');
-  script.setAttribute('data-onauth', 'onTelegramAuth(user)');
-  script.setAttribute('data-request-access', 'write'); // lets the bot DM streak reminders
-  container.appendChild(script);
+  const btn = document.createElement('button');
+  btn.className = 'auth-btn';
+  btn.textContent = 'Log in with Telegram';
+  btn.onclick = startTelegramBotLogin;
+  container.appendChild(btn);
 }
 
 function renderAuthUI(){
