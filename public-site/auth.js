@@ -1,866 +1,215 @@
-:root{
-  --wood: #eef3ff;
-  --wood-dark: #e3ecff;
-  --card: #ffffff;
-  --card-edge: #e1e7f7;
-  --ink: #1c2440;
-  --ink-soft: #667089;
-  --stamp-red: #ef5b52;
-  --stamp-green: #1fb573;
-  --gold: #f5a524;
-  --tab-blue: #4655f5;
-  --tab-blue-dark: #333fd1;
-  --violet: #8b5cf6;
-  --radius-lg: 20px;
-  --radius-md: 14px;
-  --font-head: 'Poppins', Arial, Helvetica, sans-serif;
-  --font-body: 'Inter', Arial, Helvetica, sans-serif;
+// ============================================================
+// VOCABULARY TRAINER — auth.js
+// Shared on every page. Handles Telegram login, session persistence,
+// study-event logging, and referral links.
+// ============================================================
+
+const SESSION_KEY = 'vocab-session-token-v1';
+const USER_KEY = 'vocab-user-v1';
+
+let currentUser = null;
+let currentToken = null;
+
+function getStoredSession(){
+  try{
+    const token = localStorage.getItem(SESSION_KEY);
+    const userRaw = localStorage.getItem(USER_KEY);
+    if(token && userRaw) return { token, user: JSON.parse(userRaw) };
+  }catch(e){}
+  return null;
+}
+function storeSession(token, user){
+  currentToken = token; currentUser = user;
+  try{
+    localStorage.setItem(SESSION_KEY, token);
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+  }catch(e){}
+}
+function clearSession(){
+  currentToken = null; currentUser = null;
+  try{
+    localStorage.removeItem(SESSION_KEY);
+    localStorage.removeItem(USER_KEY);
+  }catch(e){}
 }
 
-*{box-sizing:border-box;}
-html,body{margin:0;padding:0; overflow-x:hidden; width:100%;}
-body{
-  background: linear-gradient(160deg, #eef3ff 0%, #f5eeff 55%, #fdeefb 100%);
-  background-image:
-    radial-gradient(circle at 15% 8%, rgba(255,255,255,0.95), transparent 40%),
-    radial-gradient(circle at 85% 92%, rgba(255,214,240,0.55), transparent 45%),
-    radial-gradient(circle at 90% 10%, rgba(70,85,245,0.10), transparent 40%);
-  background-attachment: fixed;
-  font-family: var(--font-body);
-  color: var(--card);
-  min-height:100vh;
-  padding: 0 0 60px;
+function isLoggedIn(){ return !!currentUser; }
+function getUser(){ return currentUser; }
+function getToken(){ return currentToken; }
+
+async function callFunction(name, body){
+  const res = await fetch(`${FUNCTIONS_URL}/${name}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body || {})
+  });
+  const data = await res.json().catch(() => ({}));
+  if(!res.ok) throw new Error(data.error || 'Request failed');
+  return data;
 }
 
-@keyframes fadeInUp{
-  from{ opacity:0; transform: translateY(14px); }
-  to{ opacity:1; transform: translateY(0); }
+function getReferralCodeFromURL(){
+  const params = new URLSearchParams(location.search);
+  return params.get('ref');
 }
-@keyframes popIn{
-  from{ opacity:0; transform: scale(.92); }
-  to{ opacity:1; transform: scale(1); }
+function stripReferralFromURL(){
+  const url = new URL(location.href);
+  if(url.searchParams.has('ref')){
+    url.searchParams.delete('ref');
+    history.replaceState({}, '', url.toString());
+  }
 }
-/* ---------- TOP BANNER ---------- */
-.top-banner{
-  position: sticky;
-  top: 0;
-  z-index: 25;
-  width: 100%;
-  text-align:center;
-  padding: clamp(12px, 3vw, 15px) 16px;
-  background: linear-gradient(100deg, var(--tab-blue), var(--violet) 55%, var(--tab-blue-dark));
-  color: #ffffff;
-  font-family: var(--font-head);
-  font-weight: 700;
-  font-size: clamp(13px, 3.6vw, 17px);
-  letter-spacing: 0.01em;
-  box-shadow: 0 4px 18px rgba(70,85,245,0.28);
-}
-.top-banner span{ opacity:.85; margin: 0 6px; }
-
-.wrap{ max-width: 820px; margin: 0 auto; width:100%; padding: clamp(40px, 10vw, 28px) clamp(14px, 4vw, 20px) 0; }
-
-.masthead{
-  text-align:center;
-  margin-bottom: clamp(24px, 5vw, 34px);
-  padding-top: 6px;
-  animation: fadeInUp .5s ease both;
-}
-.masthead h1{
-  font-family: var(--font-head);
-  font-weight:800;
-  font-size: clamp(32px, 9.5vw, 46px);
-  letter-spacing: -0.015em;
-  margin: 0 0 12px;
-  color: var(--ink);
-}
-.masthead h1::after{
-  content:'';
-  display:block;
-  width: 56px;
-  height: 5px;
-  border-radius: 3px;
-  background: linear-gradient(90deg, var(--tab-blue), var(--gold));
-  margin: 14px auto 0;
-}
-.masthead p{
-  font-family: var(--font-body);
-  font-size: clamp(13.5px, 3.4vw, 15px);
-  color: var(--ink-soft);
-  margin: 16px 0 0;
+function getReferralLink(){
+  if(!currentUser) return '';
+  const url = new URL(location.origin + location.pathname.replace(/[^/]+$/, ''));
+  url.searchParams.set('ref', currentUser.referral_code);
+  return url.toString();
 }
 
-.catbar{
-  display:flex;
-  flex-wrap:wrap;
-  gap:9px;
-  justify-content:center;
-  margin: 24px 0 26px;
-}
-.cat-chip{
-  font-family: var(--font-body);
-  font-size: 12.5px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  padding: 9px 16px;
-  border-radius: 22px;
-  border: 1.5px solid var(--card-edge);
-  background: #ffffff;
-  color: var(--ink-soft);
-  cursor:pointer;
-  transition: all .18s ease;
-  user-select:none;
-  box-shadow: 0 1px 3px rgba(70,85,245,0.08);
-}
-.cat-chip:hover{ border-color: var(--tab-blue); color: var(--tab-blue); transform: translateY(-2px); box-shadow: 0 6px 14px rgba(70,85,245,0.16); }
-.cat-chip.active{
-  background: linear-gradient(120deg, var(--tab-blue), var(--violet));
-  border-color: transparent;
-  color: #ffffff;
-  font-weight:700;
-  box-shadow: 0 4px 14px rgba(70,85,245,0.35);
+// ---------- Telegram bot login (deep link + polling) ----------
+// Instead of the oauth.telegram.org widget (which asks for a phone number
+// and can fail to deliver a code), this opens a t.me/YourBot?start=CODE
+// deep link straight into the Telegram app. The user taps Start once,
+// the bot's webhook logs them in server-side, and this tab polls until
+// that happens.
+
+let loginPollTimer = null;
+
+function stopLoginPoll(){
+  if(loginPollTimer){ clearInterval(loginPollTimer); loginPollTimer = null; }
 }
 
-.mode-toggle{
-  display:flex;
-  justify-content:center;
-  gap: 0;
-  margin-bottom: 32px;
-  border: 1.5px solid var(--card-edge);
-  border-radius: 14px;
-  overflow:hidden;
-  width: fit-content;
-  max-width: 100%;
-  margin-left:auto; margin-right:auto;
-  box-shadow: 0 2px 8px rgba(70,85,245,0.1);
-}
-.mode-btn{
-  font-family: var(--font-head);
-  font-size: clamp(13px, 3.4vw, 14px);
-  font-weight: 600;
-  padding: 13px clamp(18px, 5.5vw, 28px);
-  background: #ffffff;
-  color: var(--ink-soft);
-  border:none;
-  cursor:pointer;
-  transition: all .18s ease;
-  white-space: nowrap;
-}
-.mode-btn:hover{ color: var(--tab-blue); background: #f3f5ff; }
-.mode-btn.active{ background: linear-gradient(120deg, var(--tab-blue), var(--violet)); color: #ffffff; }
-.mode-btn.active:hover{ color: #ffffff; }
-
-/* ---------- FLASHCARD ---------- */
-.stage{ display:flex; flex-direction:column; align-items:center; animation: fadeInUp .4s ease both; }
-
-.progress-row{
-  font-family: var(--font-body);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink-soft);
-  margin-bottom: 16px;
-  display:flex; gap: 16px; align-items:center;
-}
-.progress-bar{
-  width: 190px; height: 7px; background:var(--card-edge); border-radius: 4px; overflow:hidden;
-}
-.progress-fill{ height:100%; background: linear-gradient(90deg, var(--tab-blue), var(--violet)); width:0%; transition: width .3s ease; border-radius: 4px; }
-
-.card{
-  width: 100%;
-  max-width: 520px;
-  aspect-ratio: 3/2;
-  background: var(--card);
-  border-radius: var(--radius-lg);
-  box-shadow: 0 8px 0 var(--card-edge), 0 24px 44px rgba(70,85,245,0.18);
-  position: relative;
-  cursor: pointer;
-  perspective: 1200px;
-  transition: box-shadow .2s ease, transform .2s ease;
-  animation: popIn .35s ease both;
-}
-.card:hover{
-  box-shadow: 0 8px 0 var(--card-edge), 0 30px 54px rgba(70,85,245,0.24);
-  transform: translateY(-3px);
-}
-.card:active{ transform: translateY(-1px) scale(.995); }
-.card-inner{
-  width:100%; height:100%;
-  position:relative;
-  transform-style: preserve-3d;
-  transition: transform .5s cubic-bezier(.2,.8,.3,1);
-}
-.card.flipped .card-inner{ transform: rotateY(180deg); }
-.face{
-  position:absolute; inset:0;
-  backface-visibility:hidden;
-  display:flex; flex-direction:column; align-items:center; justify-content:center;
-  padding: 24px;
-  border-radius: 18px;
-}
-.face::before{
-  content:'';
-  position:absolute; top:16px; left:16px; right:16px; bottom:16px;
-  border: 1.5px dashed var(--card-edge);
-  border-radius: 4px;
-  pointer-events:none;
-}
-.face-tag{
-  position:absolute; top: 16px; left: 24px;
-  font-family: var(--font-head);
-  font-size: 11px;
-  font-weight:700;
-  letter-spacing: 0.12em;
-  text-transform:uppercase;
-  color: var(--tab-blue);
-  background: rgba(70,85,245,0.08);
-  padding: 3px 9px;
-  border-radius: 20px;
-}
-.face-word{
-  font-family: var(--font-head);
-  font-weight: 800;
-  font-size: clamp(26px, 7.5vw, 40px);
-  color: var(--ink);
-  text-align:center;
-  line-height:1.15;
-  max-width: 100%;
-  word-break: break-word;
-  padding: 0 8px;
-}
-.face-sub{
-  font-family: var(--font-body);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--ink-soft);
-  margin-top: 12px;
-}
-.back{ transform: rotateY(180deg); background: linear-gradient(160deg, #eef2ff, #f5eeff); }
-.back .face-word{ color: var(--tab-blue); font-size: clamp(22px, 6vw, 34px); }
-.back .face-tag{ color: var(--violet); background: rgba(139,92,246,0.1); }
-
-.card-controls{
-  display:flex; flex-wrap:wrap; justify-content:center; gap: 12px; margin-top: 26px;
-}
-.ctrl-btn{
-  font-family: var(--font-head);
-  font-size: clamp(13px, 3.4vw, 14.5px);
-  font-weight: 700;
-  padding: 14px clamp(18px, 4.5vw, 26px);
-  border-radius: 14px;
-  border: 1.5px solid var(--card-edge);
-  background: #ffffff;
-  color: var(--ink);
-  cursor:pointer;
-  box-shadow: 0 2px 4px rgba(70,85,245,0.08);
-  transition: transform .12s ease, box-shadow .12s ease;
-}
-.ctrl-btn:hover{ border-color: var(--gold); transform: translateY(-2px); }
-.ctrl-btn:active{ transform: translateY(0) scale(.97); }
-.ctrl-btn.primary{ background: var(--tab-blue); border-color: var(--tab-blue); color:#fff; }
-.ctrl-btn.know{ background: linear-gradient(120deg, var(--stamp-green), #16a05f); border-color: var(--stamp-green); color:#fff; }
-.ctrl-btn.dontknow{ background: linear-gradient(120deg, var(--stamp-red), #e14238); border-color: var(--stamp-red); color:#fff; }
-.ctrl-btn.know:hover, .ctrl-btn.dontknow:hover, .ctrl-btn.primary:hover{
-  box-shadow: 0 10px 22px rgba(28,36,64,0.22);
+function makeLoginCode(){
+  if(crypto && crypto.randomUUID) return crypto.randomUUID().replace(/-/g, '');
+  return 'c' + Date.now() + Math.random().toString(36).slice(2);
 }
 
-.hint{
-  font-family: var(--font-body);
-  font-size: 12px;
-  color: var(--ink-soft);
-  margin-top: 16px;
+async function startTelegramBotLogin(){
+  const authArea = document.getElementById('authArea');
+  if(!authArea) return;
+
+  if(!TELEGRAM_BOT_NAME || TELEGRAM_BOT_NAME === 'YourBotUsername'){
+    authArea.innerHTML = '<div class="auth-hint">Telegram login not configured yet.</div>';
+    return;
+  }
+
+  const code = makeLoginCode();
+  authArea.innerHTML = `
+    <div class="auth-pending">
+      <span>Waiting for Telegram… </span>
+      <a id="authOpenBot" href="https://t.me/${TELEGRAM_BOT_NAME}?start=${code}" target="_blank" rel="noopener" class="auth-btn">Open Telegram</a>
+      <button id="authCancelPoll" class="auth-cancel" title="Cancel">✕</button>
+    </div>
+  `;
+
+  // Open it immediately too, in case the user's click was swallowed by the re-render.
+  window.open(`https://t.me/${TELEGRAM_BOT_NAME}?start=${code}`, '_blank', 'noopener');
+
+  document.getElementById('authCancelPoll').onclick = () => {
+    stopLoginPoll();
+    renderAuthUI();
+  };
+
+  stopLoginPoll();
+  const startedAt = Date.now();
+  loginPollTimer = setInterval(async () => {
+    // Give up after 3 minutes so a stuck poll doesn't run forever.
+    if(Date.now() - startedAt > 3 * 60 * 1000){
+      stopLoginPoll();
+      const area = document.getElementById('authArea');
+      if(area) area.innerHTML = '<div class="auth-hint">Login timed out. Try again.</div>';
+      return;
+    }
+    try{
+      const data = await callFunction('check-login', { code });
+      if(data.status === 'claimed' && data.token && data.user){
+        stopLoginPoll();
+        storeSession(data.token, data.user);
+        stripReferralFromURL();
+        renderAuthUI();
+        if(typeof onAuthChanged === 'function') onAuthChanged();
+      }
+    }catch(e){
+      console.error('check-login failed', e);
+    }
+  }, 2000);
 }
 
-/* ---------- QUIZ ---------- */
-.quiz-box{
-  background: var(--card);
-  border-radius: var(--radius-lg);
-  padding: clamp(22px, 5.5vw, 32px) clamp(20px, 5.5vw, 30px) 26px;
-  max-width: 560px;
-  width:100%;
-  box-shadow: 0 8px 0 var(--card-edge), 0 24px 44px rgba(70,85,245,0.18);
-  margin: 0 auto;
-  animation: popIn .35s ease both;
-}
-.quiz-tag{
-  font-family: var(--font-head);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing:0.1em;
-  text-transform:uppercase;
-  color: var(--tab-blue);
-  margin-bottom: 12px;
-}
-.quiz-q{
-  font-family: var(--font-head);
-  font-weight:800;
-  font-size: clamp(22px, 6vw, 30px);
-  color: var(--ink);
-  margin-bottom: 24px;
-  text-align:center;
-  word-break: break-word;
-}
-.options{ display:flex; flex-direction:column; gap:12px; }
-.opt{
-  font-family: var(--font-body);
-  font-size: clamp(14px, 3.8vw, 16px);
-  font-weight: 600;
-  text-align:left;
-  padding: 15px 18px;
-  border-radius: 12px;
-  border: 2px solid var(--card-edge);
-  background: #f7f9ff;
-  color: var(--ink);
-  cursor:pointer;
-  transition: all .14s ease;
-}
-.opt:hover{ border-color: var(--tab-blue); transform: translateY(-1px); background:#eef1ff; }
-.opt.correct{ background: #e0f8ec; border-color: var(--stamp-green); }
-.opt.wrong{ background: #fde6e4; border-color: var(--stamp-red); }
-.opt[disabled]{ cursor:default; }
-.opt[disabled]:hover{ transform:none; }
-
-.quiz-footer{
-  display:flex; flex-wrap:wrap; gap:10px; justify-content:space-between; align-items:center;
-  margin-top: 20px;
-  font-family: var(--font-body);
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ink-soft);
-}
-.next-btn{
-  font-family: var(--font-head);
-  font-size: 13.5px;
-  font-weight: 700;
-  padding: 10px 20px;
-  border-radius: 10px;
-  border: none;
-  background: linear-gradient(120deg, var(--tab-blue), var(--violet));
-  color: #ffffff;
-  cursor:pointer;
-  visibility:hidden;
-  transition: transform .12s ease, box-shadow .12s ease;
-  box-shadow: 0 4px 12px rgba(70,85,245,0.28);
-}
-.next-btn:hover{ transform: translateY(-2px); }
-.next-btn.show{ visibility:visible; }
-
-.summary{
-  text-align:center;
-  font-family: var(--font-body);
-  color: var(--ink);
-  animation: popIn .4s ease both;
-}
-.summary .big{
-  font-family: var(--font-head);
-  font-size: clamp(38px, 10vw, 52px);
-  font-weight:800;
-  background: linear-gradient(120deg, var(--tab-blue), var(--violet));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-  margin: 10px 0;
-}
-.restart-btn{
-  margin-top: 20px;
-  font-family: var(--font-head);
-  font-size: 14px;
-  font-weight: 700;
-  padding: 13px 24px;
-  border-radius: 12px;
-  border: none;
-  background: linear-gradient(120deg, var(--tab-blue), var(--violet));
-  color: #ffffff;
-  cursor:pointer;
-  box-shadow: 0 6px 16px rgba(70,85,245,0.28);
-  transition: transform .14s ease;
-}
-.restart-btn:hover{ transform: translateY(-2px); }
-
-@media (max-width: 480px){
-  .catbar{ gap:6px; margin: 18px 0 20px; }
-  .cat-chip{ font-size: 11.5px; padding: 8px 13px; }
-  .card{ max-width: 100%; }
-  .progress-bar{ width: 120px; }
-  .modal-box{ max-height: 88vh; }
-  .modal-head{ padding: 14px 16px 12px; }
-  .modal-list{ padding: 6px 16px; }
-  .modal-foot{ padding: 12px 16px 16px; flex-wrap: wrap; }
-  .modal-foot .modal-btn{ flex:1; text-align:center; }
+function injectTelegramWidget(container){
+  container.innerHTML = '';
+  if(!TELEGRAM_BOT_NAME || TELEGRAM_BOT_NAME === 'YourBotUsername'){
+    container.innerHTML = '<div class="auth-hint">Telegram login not configured yet.</div>';
+    return;
+  }
+  const btn = document.createElement('button');
+  btn.className = 'auth-btn';
+  btn.textContent = 'Log in with Telegram';
+  btn.onclick = startTelegramBotLogin;
+  container.appendChild(btn);
 }
 
-@media (max-width: 360px){
-  .weak-pill span, .weak-pill{ font-size: 10.5px; }
-  .ctrl-btn{ flex: 1 1 auto; }
+function renderAuthUI(){
+  const authArea = document.getElementById('authArea');
+  if(!authArea) return;
+
+  if(isLoggedIn()){
+    const u = currentUser;
+    authArea.innerHTML = `
+      <div class="auth-pill" id="authProfilePill" title="View your stats">
+        ${u.photo_url ? `<img src="${u.photo_url}" class="auth-avatar" alt="">` : `<span class="auth-avatar auth-avatar-fallback">${(u.first_name||'S')[0]}</span>`}
+        <span class="auth-name">${u.first_name}</span>
+        <span class="auth-streak">🔥${u.streak_count||0}</span>
+        <button class="auth-logout" id="authLogoutBtn" title="Log out">⏻</button>
+      </div>
+    `;
+    document.getElementById('authProfilePill').onclick = (e) => {
+      if(e.target.id === 'authLogoutBtn') return;
+      location.href = 'stats.html';
+    };
+    document.getElementById('authLogoutBtn').onclick = (e) => {
+      e.stopPropagation();
+      clearSession();
+      renderAuthUI();
+      if(typeof onAuthChanged === 'function') onAuthChanged();
+    };
+  } else {
+    injectTelegramWidget(authArea);
+  }
 }
 
-/* ---------- FULLSCREEN TOGGLE ---------- */
-.fullscreen-btn{
-  position: fixed;
-  top: clamp(64px, 12vw, 78px);
-  left: clamp(10px, 3vw, 18px);
-  font-family: var(--font-head);
-  font-size: clamp(11px, 2.8vw, 12.5px);
-  font-weight: 700;
-  padding: clamp(8px, 2.2vw, 10px) clamp(12px, 3vw, 16px);
-  border-radius: 22px;
-  border: 1.5px solid var(--card-edge);
-  background: #ffffff;
-  color: var(--ink-soft);
-  cursor: pointer;
-  z-index: 20;
-  display:flex; align-items:center; gap:6px;
-  box-shadow: 0 2px 8px rgba(70,85,245,0.1);
-  white-space: nowrap;
-  transition: all .15s ease;
-}
-.fullscreen-btn:hover{ border-color: var(--tab-blue); color: var(--tab-blue); transform: translateY(-2px); }
-.fullscreen-btn.active{
-  background: linear-gradient(120deg, var(--tab-blue), var(--violet));
-  border-color: transparent;
-  color: #ffffff;
+async function resumeSessionIfAny(){
+  const stored = getStoredSession();
+  if(!stored) { renderAuthUI(); return; }
+  currentToken = stored.token; currentUser = stored.user;
+  renderAuthUI(); // show cached state immediately, refresh in background
+  try{
+    const data = await callFunction('resume-session', { token: stored.token });
+    storeSession(stored.token, data.user);
+    renderAuthUI();
+    if(typeof onAuthChanged === 'function') onAuthChanged();
+  }catch(e){
+    clearSession();
+    renderAuthUI();
+  }
 }
 
-/* ---------- WEAK WORDS ---------- */
-.weak-pill{
-  position: fixed;
-  top: clamp(64px, 12vw, 78px);
-  right: clamp(10px, 3vw, 18px);
-  font-family: var(--font-head);
-  font-size: clamp(11px, 2.8vw, 12.5px);
-  font-weight: 700;
-  padding: clamp(8px, 2.2vw, 10px) clamp(12px, 3vw, 16px);
-  border-radius: 22px;
-  border: none;
-  background: linear-gradient(120deg, var(--stamp-red), #e14238);
-  color: #fff;
-  cursor: pointer;
-  z-index: 20;
-  display:flex; align-items:center; gap:6px;
-  box-shadow: 0 4px 14px rgba(239,91,82,0.35);
-  white-space: nowrap;
-  transition: transform .15s ease, box-shadow .15s ease;
-}
-.weak-pill:hover{ transform: translateY(-2px); box-shadow: 0 8px 20px rgba(239,91,82,0.42); }
-
-.modal-overlay{
-  position: fixed; inset:0;
-  background: rgba(28,36,64,0.5);
-  backdrop-filter: blur(2px);
-  display:none;
-  align-items:center; justify-content:center;
-  z-index: 50;
-  padding: 20px;
-}
-.modal-overlay.show{ display:flex; }
-.modal-box{
-  background: var(--card);
-  border-radius: var(--radius-lg);
-  max-width: 560px;
-  width:100%;
-  max-height: 80vh;
-  display:flex;
-  flex-direction:column;
-  box-shadow: 0 24px 60px rgba(28,36,64,0.3);
-  animation: popIn .25s ease both;
-}
-.modal-head{
-  padding: 20px 22px 16px;
-  border-bottom: 1.5px solid var(--card-edge);
-  display:flex; justify-content:space-between; align-items:center;
-}
-.modal-head h2{
-  font-family: var(--font-head);
-  font-size: 22px;
-  font-weight: 800;
-  margin:0;
-  color: var(--ink);
-}
-.modal-close{
-  background:none; border:none; cursor:pointer;
-  font-family: var(--font-body);
-  font-weight: 600;
-  font-size: 13px;
-  color: var(--ink-soft);
-}
-.modal-list{
-  overflow-y:auto;
-  padding: 8px 22px;
-  flex:1;
-}
-.weak-row{
-  display:flex; flex-wrap:wrap; justify-content:space-between; align-items:center;
-  padding: 12px 0;
-  border-bottom: 1.5px dashed var(--card-edge);
-  gap: 10px;
-}
-.weak-row .wr-idx{
-  display:inline-flex; align-items:center; justify-content:center;
-  width: 22px; height: 22px; min-width:22px;
-  border-radius: 50%;
-  background: rgba(70,85,245,0.1);
-  color: var(--tab-blue);
-  font-family: var(--font-head);
-  font-size: 11px;
-  font-weight: 800;
-  margin-right: 10px;
-}
-.weak-row .wr-word{
-  font-family: var(--font-head);
-  font-weight:700;
-  color: var(--ink);
-  font-size: 15.5px;
-}
-.weak-row .wr-ru{
-  font-family: var(--font-body);
-  font-size: 13.5px;
-  color: var(--ink-soft);
-}
-.weak-row .wr-meta{
-  font-family: var(--font-body);
-  font-size: 10.5px;
-  color: var(--ink-soft);
-  margin-left: 32px;
-}
-.weak-row .wr-remove{
-  font-family: var(--font-body);
-  font-weight: 600;
-  font-size: 11px;
-  background:none;
-  border: 1.5px solid var(--card-edge);
-  border-radius: 6px;
-  color: var(--ink-soft);
-  cursor:pointer;
-  padding: 5px 10px;
-  transition: all .12s ease;
-}
-.weak-row .wr-remove:hover{ border-color: var(--stamp-red); color: var(--stamp-red); }
-.modal-empty{
-  padding: 34px 0;
-  text-align:center;
-  font-family: var(--font-body);
-  color: var(--ink-soft);
-  font-size: 13.5px;
-}
-.modal-foot{
-  padding: 16px 22px 20px;
-  border-top: 1.5px solid var(--card-edge);
-  display:flex; gap: 10px; justify-content:flex-end;
-}
-.modal-btn{
-  font-family: var(--font-head);
-  font-weight: 700;
-  font-size: 13px;
-  padding: 10px 18px;
-  border-radius: 10px;
-  border: none;
-  background: linear-gradient(120deg, var(--tab-blue), var(--violet));
-  color: #ffffff;
-  cursor:pointer;
-  transition: transform .12s ease;
-}
-.modal-btn:hover{ transform: translateY(-2px); }
-.modal-btn.secondary{
-  background: transparent;
-  border: 1.5px solid var(--card-edge);
-  color: var(--ink-soft);
-}
-.modal-btn.secondary:hover{ transform:none; border-color: var(--stamp-red); color: var(--stamp-red); }
-
-.site-footer{
-  text-align:center;
-  margin-top: 48px;
-  padding-top: 22px;
-  border-top: 1.5px solid var(--card-edge);
-  font-family: var(--font-body);
-  font-size: 13px;
-  color: var(--ink-soft);
-}
-.site-footer p{ margin: 4px 0; }
-.site-footer a{ color: var(--tab-blue); text-decoration: none; font-weight: 700; }
-.site-footer a:hover{ text-decoration: underline; }
-
-/* ---------- LIBRARY NAVIGATION ---------- */
-.back-btn{
-  font-family: var(--font-head);
-  font-size: 13px;
-  font-weight: 700;
-  background: #ffffff;
-  border: 1.5px solid var(--card-edge);
-  color: var(--ink-soft);
-  padding: 9px 16px;
-  border-radius: 22px;
-  cursor: pointer;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 6px rgba(70,85,245,0.1);
-  transition: all .15s ease;
-}
-.back-btn:hover{ border-color: var(--tab-blue); color: var(--tab-blue); transform: translateX(-3px); }
-
-.book-grid{
-  display:grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 18px;
-  margin-top: 26px;
-}
-@media (max-width: 560px){
-  .book-grid{ grid-template-columns: 1fr; }
-}
-.book-card{
-  background: var(--card);
-  border-radius: var(--radius-lg);
-  padding: 26px 24px;
-  text-align:left;
-  cursor:pointer;
-  border: 1.5px solid var(--card-edge);
-  border-top: 5px solid var(--book-accent, var(--tab-blue));
-  box-shadow: 0 8px 0 var(--card-edge), 0 18px 32px rgba(70,85,245,0.14);
-  transition: transform .18s ease, box-shadow .18s ease;
-  animation: fadeInUp .4s ease both;
-}
-.book-card:hover{
-  transform: translateY(-5px) scale(1.01);
-  box-shadow: 0 8px 0 var(--card-edge), 0 26px 42px rgba(70,85,245,0.2);
-}
-.book-card .bc-title{
-  font-family: var(--font-head);
-  font-weight: 800;
-  font-size: 19px;
-  color: var(--ink);
-  margin-bottom: 8px;
-}
-.book-card .bc-sub{
-  font-family: var(--font-body);
-  font-size: 13.5px;
-  color: var(--ink-soft);
-  line-height: 1.55;
-}
-.book-card .bc-count{
-  display:inline-block;
-  margin-top: 14px;
-  font-family: var(--font-head);
-  font-size: 11.5px;
-  font-weight: 700;
-  color: var(--book-accent, var(--tab-blue));
-  background: rgba(70,85,245,0.09);
-  padding: 5px 12px;
-  border-radius: 20px;
+// Fire-and-forget: logs one flashcard/quiz answer for the stats page.
+// Silently does nothing if the student isn't logged in — study still
+// works fully logged-out, they just won't have a stats history.
+function logStudyEvent(w, result){
+  if(!isLoggedIn()) return;
+  callFunction('log-event', {
+    token: currentToken,
+    word_en: w.en, word_ru: w.ru, category: w.category,
+    book_title: w.book, item_title: w.item, result
+  }).then(data => {
+    if(currentUser){
+      currentUser.xp = data.xp;
+      currentUser.streak_count = data.streak_count;
+      storeSession(currentToken, currentUser);
+      renderAuthUI();
+    }
+  }).catch(e => console.error('log-event failed', e));
 }
 
-.item-grid{
-  display:grid;
-  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-  gap: 14px;
-  margin-top: 10px;
-}
-.item-card{
-  background: var(--card);
-  border-radius: var(--radius-md);
-  padding: 18px 18px;
-  text-align:left;
-  cursor:pointer;
-  border: 1.5px solid var(--card-edge);
-  box-shadow: 0 5px 0 var(--card-edge), 0 12px 22px rgba(70,85,245,0.11);
-  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
-  position: relative;
-  animation: fadeInUp .4s ease both;
-}
-.item-card:hover{
-  transform: translateY(-3px);
-  border-color: var(--tab-blue);
-  box-shadow: 0 5px 0 var(--card-edge), 0 16px 28px rgba(70,85,245,0.16);
-}
-.item-card .ic-idx{
-  display:inline-flex; align-items:center; justify-content:center;
-  width: 26px; height:26px;
-  border-radius: 50%;
-  background: linear-gradient(120deg, var(--tab-blue), var(--violet));
-  color:#fff;
-  font-family: var(--font-head);
-  font-size: 12px;
-  font-weight: 800;
-  margin-bottom: 10px;
-}
-.item-card .ic-title{
-  font-family: var(--font-head);
-  font-weight: 700;
-  font-size: 16px;
-  color: var(--ink);
-  margin-bottom: 5px;
-}
-.item-card .ic-sub{
-  font-family: var(--font-body);
-  font-size: 12px;
-  color: var(--ink-soft);
-}
-
-.empty-state{
-  text-align:center;
-  padding: 44px 22px;
-  font-family: var(--font-body);
-  color: var(--ink-soft);
-  font-size: 14px;
-  background: #ffffff;
-  border: 1.5px dashed var(--card-edge);
-  border-radius: var(--radius-md);
-  line-height: 1.7;
-}
-.empty-state strong{ color: var(--ink); }
-
-.breadcrumb{
-  font-family: var(--font-body);
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--ink-soft);
-  text-align:center;
-  margin: 6px 0 0;
-}
-
-/* ---------- LOADING / ERROR STATES ---------- */
-.loading-state, .error-state{
-  text-align:center;
-  padding: 70px 20px;
-  font-family: var(--font-body);
-  color: var(--ink-soft);
-  font-size: 15px;
-  font-weight: 600;
-}
-.error-state{
-  color: var(--stamp-red);
-  background: #fff0ef;
-  border: 1.5px solid var(--stamp-red);
-  border-radius: var(--radius-md);
-  line-height: 1.7;
-  max-width: 600px;
-  margin: 60px auto 0;
-}
-.error-state code{
-  background: rgba(0,0,0,0.06);
-  padding: 2px 6px;
-  border-radius: 4px;
-  font-size: 12px;
-}
-
-/* ============================================================
-   TELEGRAM LOGIN / STATS / SHARE — added on top of the base design
-   ============================================================ */
-
-.top-nav{ display:flex; justify-content:center; gap: 14px; padding: 14px 16px 0; flex-wrap: wrap; }
-.top-nav-link{
-  font-family: var(--font-head); font-size: clamp(11.5px, 2.6vw, 13px); font-weight: 700;
-  color: var(--tab-blue); background: #ffffff; border: 1.5px solid var(--card-edge);
-  padding: 8px 16px; border-radius: 20px; text-decoration: none;
-  box-shadow: 0 2px 8px rgba(70,85,245,0.08); transition: all .15s ease; white-space: nowrap;
-}
-.top-nav-link:hover{ border-color: var(--tab-blue); transform: translateY(-2px); }
-
-.auth-area{ position: fixed; top: clamp(108px, 18vw, 128px); left: clamp(10px, 3vw, 18px); z-index: 20; }
-.auth-pill{
-  display:flex; align-items:center; gap:8px; background:#ffffff; border:1.5px solid var(--card-edge);
-  border-radius: 22px; padding: 6px 10px 6px 6px; box-shadow: 0 4px 14px rgba(70,85,245,0.14);
-  cursor:pointer; transition: transform .15s ease;
-}
-.auth-pill:hover{ transform: translateY(-2px); }
-.auth-avatar{ width:28px; height:28px; border-radius:50%; object-fit:cover; }
-.auth-avatar-fallback{
-  display:flex; align-items:center; justify-content:center;
-  background: linear-gradient(120deg, var(--tab-blue), var(--violet));
-  color:#fff; font-family: var(--font-head); font-weight:700; font-size:13px;
-}
-.auth-name{ font-family: var(--font-head); font-weight:700; font-size:12.5px; color: var(--ink); }
-.auth-streak{ font-size:12px; font-weight:700; color: var(--gold); }
-.auth-logout{ border:none; background:transparent; color: var(--ink-soft); cursor:pointer; font-size:14px; padding:2px 4px; border-radius:50%; }
-.auth-logout:hover{ color: var(--stamp-red); }
-.auth-loading, .auth-hint{
-  font-size: 11.5px; color: var(--ink-soft); background:#fff;
-  border:1.5px solid var(--card-edge); border-radius:16px; padding:8px 14px;
-}
-.auth-btn{
-  font-family: var(--font-head); font-weight:700; font-size: 12.5px; text-decoration:none;
-  display:inline-block; padding: 8px 16px; border-radius: 16px; border:none; cursor:pointer;
-  background: linear-gradient(120deg, #2AABEE, #229ED9); color:#fff;
-  box-shadow: 0 4px 14px rgba(34,158,217,0.3); transition: transform .15s ease;
-}
-.auth-btn:hover{ transform: translateY(-2px); }
-.auth-pending{
-  display:flex; align-items:center; gap:8px; font-size: 11.5px; color: var(--ink-soft);
-  background:#fff; border:1.5px solid var(--card-edge); border-radius:18px; padding:6px 8px 6px 14px;
-}
-.auth-cancel{
-  border:none; background:transparent; color: var(--ink-soft); cursor:pointer;
-  font-size:13px; padding:2px 6px; border-radius:50%;
-}
-.auth-cancel:hover{ color: var(--stamp-red); }
-
-.summary-actions{ display:flex; gap:12px; flex-wrap:wrap; justify-content:center; margin-top: 6px; }
-.share-btn{
-  font-family: var(--font-head); font-weight:700; font-size: 13.5px;
-  padding: 12px 22px; border-radius: 16px; border:none; cursor:pointer;
-  background: linear-gradient(120deg, var(--violet), var(--tab-blue));
-  color:#fff; box-shadow: 0 6px 18px rgba(139,92,246,0.35); transition: transform .15s ease;
-}
-.share-btn:hover{ transform: translateY(-2px); }
-
-.stats-grid{ display:grid; grid-template-columns: repeat(auto-fit, minmax(150px,1fr)); gap: 16px; margin: 24px 0 32px; }
-.stat-card{
-  background:#fff; border:1.5px solid var(--card-edge); border-radius: var(--radius-md);
-  padding: 18px 16px; text-align:center; box-shadow: 0 4px 14px rgba(70,85,245,0.08);
-}
-.stat-card .sc-value{ font-family: var(--font-head); font-weight:800; font-size: clamp(24px,5vw,32px); color: var(--ink); }
-.stat-card .sc-label{ font-size: 12px; color: var(--ink-soft); margin-top:4px; }
-
-.activity-chart{
-  display:flex; align-items:flex-end; gap: 6px; height: 120px;
-  background:#fff; border:1.5px solid var(--card-edge); border-radius: var(--radius-md);
-  padding: 16px; margin-bottom: 28px;
-}
-.activity-bar{ flex:1; background: linear-gradient(180deg, var(--tab-blue), var(--violet)); border-radius: 4px 4px 0 0; min-height: 3px; }
-
-.referral-box{ background:#fff; border:1.5px solid var(--card-edge); border-radius: var(--radius-lg); padding: 22px; margin-bottom: 28px; }
-.referral-box h3{ font-family: var(--font-head); margin:0 0 6px; color:var(--ink); }
-.referral-link-row{ display:flex; gap:10px; flex-wrap:wrap; margin: 14px 0; }
-.referral-link-row input{
-  flex:1; min-width: 200px; padding: 10px 14px; border-radius: 12px;
-  border:1.5px solid var(--card-edge); font-family: var(--font-body); font-size:13px;
-  color: var(--ink-soft); background: var(--wood);
-}
-.referral-copy-btn, .referral-share-btn{
-  font-family: var(--font-head); font-weight:700; font-size:12.5px;
-  padding: 10px 16px; border-radius:12px; border:none; cursor:pointer;
-  background: linear-gradient(120deg, var(--tab-blue), var(--violet)); color:#fff;
-}
-.referral-progress{ height: 10px; background: var(--wood-dark); border-radius: 6px; overflow:hidden; margin-top:14px; }
-.referral-progress-fill{ height:100%; background: linear-gradient(90deg, var(--stamp-green), var(--tab-blue)); transition: width .3s ease; }
-.referral-unlocked{ margin-top:14px; padding: 12px 16px; border-radius:12px; background: rgba(31,181,115,0.1); color: var(--stamp-green); font-weight:700; font-size:13.5px; }
-
-.login-gate{ text-align:center; padding: 60px 20px; background:#fff; border-radius: var(--radius-lg); border: 1.5px solid var(--card-edge); margin-top: 20px; }
-.login-gate p{ color: var(--ink-soft); margin-bottom: 20px; }
-.login-gate-widget{ display:flex; justify-content:center; }
-
-.lang-toggle{ display:flex; gap:10px; justify-content:center; margin: 18px 0 30px; }
-.lang-btn{
-  font-family: var(--font-head); font-weight:700; font-size:13px;
-  padding: 9px 20px; border-radius: 18px; cursor:pointer;
-  border: 1.5px solid var(--card-edge); background:#fff; color: var(--ink-soft);
-}
-.lang-btn.active{ background: linear-gradient(120deg, var(--tab-blue), var(--violet)); color:#fff; border-color:transparent; }
-.article-body{
-  background:#fff; border-radius: var(--radius-lg); border:1.5px solid var(--card-edge);
-  padding: clamp(24px,5vw,44px); max-width: 760px; margin: 0 auto 40px;
-  color: var(--ink); line-height: 1.7; font-size: 15.5px;
-}
-.article-body h2{ font-family: var(--font-head); color: var(--ink); margin-top: 28px; }
-.article-body h2:first-child{ margin-top:0; }
-.article-body p{ margin: 12px 0; }
-.article-body ul{ padding-left: 22px; }
-.article-body li{ margin: 8px 0; }
-
-/* ---------- "soon" placeholder page ---------- */
-.soon-box{
-  text-align:center; max-width: 480px; margin: 70px auto 40px;
-  background:#fff; border-radius: var(--radius-lg); border:1.5px solid var(--card-edge);
-  padding: 50px 30px; box-shadow: 0 6px 18px rgba(70,85,245,0.08);
-}
-.soon-emoji{ font-size: 44px; margin-bottom: 10px; }
-.soon-box h1{ font-family: var(--font-head); font-size: clamp(26px,5vw,32px); margin: 0 0 10px; color: var(--ink); }
-.soon-box p{ color: var(--ink-soft); margin: 0 0 22px; font-size: 14.5px; }
+document.addEventListener('DOMContentLoaded', resumeSessionIfAny);
