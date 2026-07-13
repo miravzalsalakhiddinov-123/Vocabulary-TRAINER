@@ -1,0 +1,18 @@
+name: Send streak reminders
+
+on:
+  schedule:
+    # 17:00 UTC daily — adjust to whatever time suits your students' timezone.
+    # Cron is always in UTC. E.g. for 20:00 Tashkent time (UTC+5), use '0 15 * * *'.
+    - cron: '0 17 * * *'
+  workflow_dispatch: {} # lets you also trigger it manually from the Actions tab
+
+jobs:
+  send-reminders:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call send-reminders edge function
+        run: |
+          curl -sf -X POST "${{ secrets.SUPABASE_FUNCTIONS_URL }}/send-reminders" \
+            -H "x-cron-secret: ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json"
