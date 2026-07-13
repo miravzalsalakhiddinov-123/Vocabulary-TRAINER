@@ -18,6 +18,12 @@
 <button class="fullscreen-btn" id="fullscreenBtn">⛶ <span id="fullscreenLabel">Fullscreen</span></button>
 <button class="weak-pill" id="weakPill" style="display:none;">✗ Weak words: <span id="weakCount">0</span></button>
 
+<div class="top-nav">
+  <a href="stats.html" class="top-nav-link">📊 My Stats</a>
+  <a href="article.html" class="top-nav-link">📖 Why Vocabulary Matters</a>
+</div>
+<div id="authArea" class="auth-area"></div>
+
 <div class="modal-overlay" id="weakModal">
   <div class="modal-box">
     <div class="modal-head">
@@ -125,7 +131,10 @@
         <div class="eyebrow" style="color:var(--ink-soft);">Session complete</div>
         <div class="big" id="summaryScore">0 / 0</div>
         <div id="summaryDetail" style="color:var(--ink-soft);">correct answers</div>
-        <button class="restart-btn" id="restartBtn">Run again</button>
+        <div class="summary-actions">
+          <button class="restart-btn" id="restartBtn">Run again</button>
+          <button class="share-btn" id="shareResultBtn">📤 Share result</button>
+        </div>
       </div>
     </div>
   </div>
@@ -141,6 +150,8 @@
 </script>
 <script defer src="/_vercel/insights/script.js"></script>
 <script src="config.js"></script>
+<script src="auth.js"></script>
+<script src="share.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

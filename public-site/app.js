@@ -86,6 +86,7 @@ function markWeak(w){
   };
   renderWeakPill();
   saveWeakWords();
+  if(typeof logStudyEvent === 'function') logStudyEvent(w, 'weak');
 }
 function markMastered(w){
   const key = weakKey(w);
@@ -94,6 +95,7 @@ function markMastered(w){
     renderWeakPill();
     saveWeakWords();
   }
+  if(typeof logStudyEvent === 'function') logStudyEvent(w, 'known');
 }
 function renderWeakPill(){
   document.getElementById('weakCount').textContent = Object.keys(weakWords).length;
@@ -620,5 +622,22 @@ function showSummaryQuiz(){
 }
 
 document.getElementById('restartBtn').onclick = resetSession;
+
+document.getElementById('shareResultBtn').onclick = () => {
+  const scoreText = document.getElementById('summaryScore').textContent;
+  const detailText = document.getElementById('summaryDetail').textContent;
+  const setName = (currentItem && currentItem.title) || 'Vocabulary Trainer';
+  const streak = (typeof getUser === 'function' && getUser()) ? (getUser().streak_count || 0) : null;
+  if(typeof shareResultCard === 'function'){
+    shareResultCard({
+      headline: setName,
+      statLine: scoreText,
+      subLine: detailText,
+      footer: streak ? `🔥 ${streak}-day streak` : 'vocabulary-trainer-smoky.vercel.app',
+      filename: 'vocab-result.png',
+      shareText: `I scored ${scoreText} ${detailText} on ${setName} in Vocabulary Trainer!`
+    });
+  }
+};
 
 loadLibrary();

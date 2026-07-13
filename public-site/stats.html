@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>My Stats — Vocabulary Trainer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="top-banner">“Without grammar, very little can be conveyed; without vocabulary, nothing can be conveyed.” <span>—</span> David Wilkins</div>
+
+<div class="top-nav">
+  <a href="index.html" class="top-nav-link">← Back to Trainer</a>
+  <a href="article.html" class="top-nav-link">📖 Why Vocabulary Matters</a>
+</div>
+<div id="authArea" class="auth-area"></div>
+
+<div class="wrap">
+  <div class="masthead">
+    <h1>My Stats</h1>
+    <p>Your progress, streak, and referral rewards</p>
+  </div>
+
+  <div id="loggedOutView" class="login-gate" style="display:none;">
+    <p>Log in with Telegram to see your mastery stats, streak, and referral link.</p>
+    <div class="login-gate-widget" id="loginGateWidget"></div>
+  </div>
+
+  <div id="loggedInView" style="display:none;">
+    <div class="stats-grid" id="statsGrid"></div>
+
+    <h3 style="font-family:var(--font-head); color:var(--ink); margin-bottom:10px;">Last 14 days</h3>
+    <div class="activity-chart" id="activityChart"></div>
+
+    <div class="referral-box">
+      <h3>Invite friends, unlock a reward</h3>
+      <p style="color:var(--ink-soft); margin:0;">Share your link. Once <span id="referralTargetLabel">3</span> friends log in through it, you unlock <span id="referralRewardText"></span>.</p>
+      <div class="referral-link-row">
+        <input type="text" id="referralLinkInput" readonly>
+        <button class="referral-copy-btn" id="referralCopyBtn">Copy link</button>
+        <button class="referral-share-btn" id="referralShareBtn">📤 Share</button>
+      </div>
+      <div class="referral-progress"><div class="referral-progress-fill" id="referralProgressFill" style="width:0%"></div></div>
+      <p style="color:var(--ink-soft); font-size:13px; margin:8px 0 0;"><span id="referralCountLabel">0</span> / <span id="referralTargetLabel2">3</span> friends joined</p>
+      <div class="referral-unlocked" id="referralUnlockedBanner" style="display:none;">🎉 Unlocked! Message @salakhiddinovm on Telegram to claim your reward.</div>
+    </div>
+  </div>
+
+  <div class="site-footer">
+    <p>Prepared by <strong>Miravzal Salakhiddinov</strong></p>
+    <p>For more materials, reach out on Telegram: <a href="https://t.me/salakhiddinovm" target="_blank" rel="noopener">@salakhiddinovm</a></p>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js"></script>
+<script src="auth.js"></script>
+<script src="share.js"></script>
+<script src="stats.js"></script>
+</body>
+</html>
