@@ -8,7 +8,7 @@ const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBh
 // ---- Telegram login ----
 // Fill in your bot's username (no @), exactly as set with BotFather.
 // See SETUP_TELEGRAM.md for the full walkthrough.
-const TELEGRAM_BOT_NAME = 'YourBotUsername';
+const TELEGRAM_BOT_NAME = 'MyVocabularyTrainerBot';
 
 // Base URL for the Supabase Edge Functions (auto-derived, no need to edit).
 const FUNCTIONS_URL = SUPABASE_URL.replace('.supabase.co', '.supabase.co') + '/functions/v1';
