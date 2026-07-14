@@ -94,6 +94,16 @@ async function startTelegramBotLogin(){
   }
 
   const code = makeLoginCode();
+
+  // Register the code BEFORE opening Telegram — otherwise a fast tap on
+  // "Start" in the bot can arrive before our first poll would have created
+  // the row, and the webhook reports the (nonexistent) code as expired.
+  try{
+    await callFunction('check-login', { code });
+  }catch(e){
+    console.error('failed to register login code', e);
+  }
+
   authArea.innerHTML = `
     <div class="auth-pending">
       <span>Waiting for Telegram… </span>
@@ -112,8 +122,8 @@ async function startTelegramBotLogin(){
 
   stopLoginPoll();
   const startedAt = Date.now();
-  loginPollTimer = setInterval(async () => {
-    // Give up after 3 minutes so a stuck poll doesn't run forever.
+
+  const pollOnce = async () => {
     if(Date.now() - startedAt > 3 * 60 * 1000){
       stopLoginPoll();
       const area = document.getElementById('authArea');
@@ -132,20 +142,98 @@ async function startTelegramBotLogin(){
     }catch(e){
       console.error('check-login failed', e);
     }
-  }, 2000);
+  };
+
+  loginPollTimer = setInterval(pollOnce, 2000);
 }
 
-function injectTelegramWidget(container){
-  container.innerHTML = '';
-  if(!TELEGRAM_BOT_NAME || TELEGRAM_BOT_NAME === 'YourBotUsername'){
-    container.innerHTML = '<div class="auth-hint">Telegram login not configured yet.</div>';
+// ---------- Email magic link login ----------
+// Primary login method — doesn't depend on Telegram being reachable.
+
+async function sendMagicLink(email){
+  const statusEl = document.getElementById('authMagicStatus');
+  if(!email || !email.includes('@')){
+    if(statusEl) statusEl.textContent = 'Enter a valid email address.';
     return;
   }
-  const btn = document.createElement('button');
-  btn.className = 'auth-btn';
-  btn.textContent = 'Log in with Telegram';
-  btn.onclick = startTelegramBotLogin;
-  container.appendChild(btn);
+  if(statusEl) statusEl.textContent = 'Sending…';
+  try{
+    const { error } = await sb.auth.signInWithOtp({
+      email,
+      options: { emailRedirectTo: window.location.href }
+    });
+    if(error) throw error;
+    if(statusEl) statusEl.textContent = 'Check your email for a login link ✉️';
+  }catch(e){
+    console.error('magic link failed', e);
+    if(statusEl) statusEl.textContent = 'Could not send link. Try again.';
+  }
+}
+
+// Fires automatically once Supabase detects a magic-link redirect and
+// creates an auth session. We exchange that for this app's own session
+// token (same kind Telegram login issues) so everything else keeps working.
+async function handleAuthStateChange(session){
+  if(!session || !session.access_token) return;
+  const authArea = document.getElementById('authArea');
+  if(authArea) authArea.innerHTML = '<div class="auth-loading">Signing in…</div>';
+  try{
+    const ref = getReferralCodeFromURL();
+    const data = await callFunction('magic-login', { access_token: session.access_token, ref });
+    storeSession(data.token, data.user);
+    stripReferralFromURL();
+    // Clean up Supabase's own auth session — we only needed it once, to
+    // mint our own session token above; keeping two parallel session
+    // systems around is unnecessary.
+    sb.auth.signOut().catch(()=>{});
+  }catch(e){
+    console.error('magic-login failed', e);
+  }
+  renderAuthUI();
+  if(typeof onAuthChanged === 'function') onAuthChanged();
+}
+
+if(typeof sb !== 'undefined' && sb.auth){
+  sb.auth.onAuthStateChange((_event, session) => {
+    if(session) handleAuthStateChange(session);
+  });
+}
+
+function injectLoginUI(container){
+  container.innerHTML = '';
+
+  const wrap = document.createElement('div');
+  wrap.className = 'auth-login-wrap';
+  wrap.innerHTML = `
+    <div class="auth-magic">
+      <input type="email" id="authEmailInput" class="auth-email-input" placeholder="you@email.com" autocomplete="email" />
+      <button id="authMagicBtn" class="auth-btn">Email me a login link</button>
+      <div id="authMagicStatus" class="auth-hint" style="margin-top:6px;"></div>
+    </div>
+  `;
+  container.appendChild(wrap);
+
+  document.getElementById('authMagicBtn').onclick = () => {
+    const email = document.getElementById('authEmailInput').value.trim();
+    sendMagicLink(email);
+  };
+  document.getElementById('authEmailInput').addEventListener('keydown', (e) => {
+    if(e.key === 'Enter') document.getElementById('authMagicBtn').click();
+  });
+
+  if(TELEGRAM_BOT_NAME && TELEGRAM_BOT_NAME !== 'YourBotUsername'){
+    const divider = document.createElement('div');
+    divider.className = 'auth-hint';
+    divider.style.margin = '8px 0 4px';
+    divider.textContent = 'or';
+    container.appendChild(divider);
+
+    const tgBtn = document.createElement('button');
+    tgBtn.className = 'auth-btn auth-btn-telegram';
+    tgBtn.textContent = 'Log in with Telegram';
+    tgBtn.onclick = startTelegramBotLogin;
+    container.appendChild(tgBtn);
+  }
 }
 
 function renderAuthUI(){
@@ -173,7 +261,7 @@ function renderAuthUI(){
       if(typeof onAuthChanged === 'function') onAuthChanged();
     };
   } else {
-    injectTelegramWidget(authArea);
+    injectLoginUI(authArea);
   }
 }
 
