@@ -73,6 +73,12 @@
       <button class="mode-btn active" id="btn-flash">Flashcards</button>
       <button class="mode-btn" id="btn-quiz">Quiz</button>
     </div>
+    <div class="dir-toggle" id="dirToggle">
+      <span class="dir-label">Direction:</span>
+      <button class="dir-btn" data-dir="en-ru">English → Russian</button>
+      <button class="dir-btn" data-dir="ru-en">Russian → English</button>
+      <button class="dir-btn" data-dir="mixed">Mixed</button>
+    </div>
 
     <div class="stage" id="flashStage">
       <div class="progress-row">
@@ -89,7 +95,7 @@
             <div class="face-sub">tap to reveal</div>
           </div>
           <div class="face back">
-            <div class="face-tag">RU</div>
+            <div class="face-tag" id="backTag">RU</div>
             <div class="face-word" id="backWord">перевод</div>
           </div>
         </div>

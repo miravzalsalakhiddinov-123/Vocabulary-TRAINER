@@ -5,6 +5,37 @@
 // ============================================================
 
 const WEAK_KEY = 'vocab-weak-words-v1';
+const DIR_KEY = 'vocab-direction-v1';
+
+// ================= CARD DIRECTION (EN→RU / RU→EN / Mixed) =================
+// Personal to each student's own browser, like weak words.
+let wordDirection = 'en-ru';
+function loadDirection(){
+  try{
+    const saved = localStorage.getItem(DIR_KEY);
+    if(saved === 'en-ru' || saved === 'ru-en' || saved === 'mixed') wordDirection = saved;
+  }catch(e){ /* ignore */ }
+  renderDirectionButtons();
+}
+function saveDirection(){
+  try{ localStorage.setItem(DIR_KEY, wordDirection); }
+  catch(e){ console.error('storage save failed', e); }
+}
+function renderDirectionButtons(){
+  document.querySelectorAll('.dir-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.dir === wordDirection);
+  });
+}
+document.querySelectorAll('.dir-btn').forEach(btn => {
+  btn.onclick = () => {
+    if(btn.dataset.dir === wordDirection) return;
+    wordDirection = btn.dataset.dir;
+    renderDirectionButtons();
+    saveDirection();
+    resetSession();
+  };
+});
+loadDirection();
 
 function escapeHtml(str){
   const div = document.createElement('div');
@@ -502,6 +533,7 @@ const card = document.getElementById('card');
 const frontWord = document.getElementById('frontWord');
 const backWord = document.getElementById('backWord');
 const frontTag = document.getElementById('frontTag');
+const backTag = document.getElementById('backTag');
 const flashProgress = document.getElementById('flashProgress');
 const flashBar = document.getElementById('flashBar');
 const flashKnownEl = document.getElementById('flashKnown');
@@ -511,6 +543,11 @@ function startFlash(){
   flashIdx = 0; flashKnown = 0;
   showFlashCard();
 }
+function showEnglishFirst(){
+  if(wordDirection === 'en-ru') return true;
+  if(wordDirection === 'ru-en') return false;
+  return Math.random() < 0.5; // mixed
+}
 function showFlashCard(){
   if(flashDeck.length === 0) return;
   if(flashIdx >= flashDeck.length){
@@ -519,9 +556,11 @@ function showFlashCard(){
   }
   card.classList.remove('flipped');
   const w = flashDeck[flashIdx];
-  frontWord.textContent = w.en;
-  backWord.textContent = w.ru;
+  const englishFirst = showEnglishFirst();
+  frontWord.textContent = englishFirst ? w.en : w.ru;
+  backWord.textContent = englishFirst ? w.ru : w.en;
   frontTag.textContent = w.category;
+  backTag.textContent = englishFirst ? 'RU' : 'EN';
   flashProgress.textContent = (flashIdx+1) + ' / ' + flashDeck.length;
   flashBar.style.width = Math.round((flashIdx/flashDeck.length)*100) + '%';
   flashKnownEl.textContent = '✓ ' + flashKnown;
@@ -573,7 +612,7 @@ function showQuizQuestion(){
   quizFeedback.textContent = '';
   const pool = currentPool();
   const w = quizDeck[quizIdx];
-  const askEnglish = Math.random() < 0.5;
+  const askEnglish = showEnglishFirst();
   quizTag.textContent = askEnglish ? 'translate into Russian' : 'what does this mean in English';
   quizQ.textContent = askEnglish ? w.en : w.ru;
 
